@@ -1,0 +1,1 @@
+def message := "world"
