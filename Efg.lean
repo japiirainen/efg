@@ -2,46 +2,7 @@ import Lean.Data.Parsec
 
 open Lean Parsec
 
-namespace Efg.Syntax
-
-variable {α : Type} {β : Type}
-
-structure Variable where
-  location : α
-  name     : String
-  index    : Nat
-
-structure Operator where
-  location   : α
-  opLocation : α
-  op         : Op
-  left       : Syntax
-  right      : Syntax
-
-structure Lambda where
-  location     : α
-  nameLocation : α
-  name         : String
-  body         : Syntax
-
-structure App where
-  location : α
-  function : Syntax
-  argument : Syntax
-
-inductive Scalar where
-  | bool : Bool → Scalar
-  | int  : Int  → Scalar
-  | nat  : Nat  → Scalar
-  | str  : String → Scalar
-  | null : Scalar
-
-inductive Syntax where
-  | variable : Variable → Syntax
-  | operator : Operator → Syntax
-  | lambda   : Lambda   → Syntax
-  | app      : App → Syntax 
-  | scalar   : Scalar → Syntax
+namespace Efg
 
 inductive Op where
   | and   : Op
@@ -49,6 +10,7 @@ inductive Op where
   | plus  : Op
   | times : Op
   | mod   : Op
+  deriving Repr
 
 instance : ToString Op where
   toString op := match op with
@@ -58,4 +20,20 @@ instance : ToString Op where
     | Op.times => "*"
     | Op.mod   => "%"
 
-end Efg.Syntax
+inductive Scalar where
+  | bool : Bool   → Scalar
+  | int  : Int    → Scalar
+  | nat  : Nat    → Scalar
+  | str  : String → Scalar
+  | null : Scalar
+  deriving Repr
+
+inductive Syntax (α : Type u) where
+  | operator : (location : α) → (opLocation : α) → (op : Op) → (left : Syntax α) → (right : Syntax α) → Syntax α
+  | lambda   : (location : α) → (nameLocation : α) → (name : String) → (body : Syntax α) → Syntax α
+  | app      : (location : α) → (function : Syntax α) → (argument : Syntax α) → Syntax α
+  | var      : (location : α) →  (name : String) → (index : Nat) → Syntax α
+  | scalar   : Scalar → Syntax α 
+  deriving Repr
+
+end Efg
