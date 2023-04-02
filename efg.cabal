@@ -1,0 +1,120 @@
+cabal-version: 2.4
+
+name:          efg
+version:       0.0.0
+description:   efg programming language
+homepage:      https://github.com/japiirainen/efg#readme
+bug-reports:   https://github.com/japiirainen/efg/issues
+maintainer:    Joona Piirainen <joona.piirainen@gmail.com>
+license:       MIT
+license-file:  LICENSE
+build-type:    Simple
+
+source-repository head
+  type: git
+  location: https://github.com/japiirainen/efg
+
+common shared
+  mixins:
+    base hiding (Prelude),
+    relude (Relude as Prelude, Relude.Container.One),
+    relude
+  ghc-options:
+    -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies -Wunused-foralls -Wunused-foralls
+    -fprint-explicit-foralls -fprint-explicit-kinds
+
+library
+  import: shared
+  exposed-modules:
+      Efg
+  other-modules:
+      Paths_efg
+  hs-source-dirs:
+      src
+  default-extensions:
+      TypeApplications
+      OverloadedStrings
+  build-depends:
+      ansi-terminal
+    , base
+    , relude
+    , containers
+    , filepath
+    , haskeline
+    , megaparsec
+    , microlens
+    , microlens-th
+    , modern-uri
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , prettyprinter-ansi-terminal
+    , repline
+    , safe-exceptions
+    , scientific
+    , terminal-size
+    , text
+    , unordered-containers
+  default-language: Haskell2010
+
+executable efg
+  import: shared
+  main-is: Main.hs
+  other-modules:
+      Paths_efg
+  hs-source-dirs:
+      efg
+  default-extensions:
+      TypeApplications
+      OverloadedStrings
+  build-depends:
+      base
+    , relude
+    , efg
+  default-language: Haskell2010
+
+test-suite doctest
+  import: shared
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_efg
+  hs-source-dirs:
+      doctest
+  default-extensions:
+      TypeApplications
+      OverloadedStrings
+  build-depends:
+      base
+    , relude
+    , doctest
+    , efg
+  default-language: Haskell2010
+
+test-suite tasty
+  import: shared
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_efg
+  hs-source-dirs:
+      tasty
+  default-extensions:
+      TypeApplications
+      OverloadedStrings
+  build-depends:
+      base
+    , relude
+    , directory
+    , efg
+    , filepath
+    , mtl
+    , prettyprinter
+    , safe-exceptions
+    , tasty
+    , tasty-hunit
+    , tasty-silver
+    , text
+  default-language: Haskell2010
