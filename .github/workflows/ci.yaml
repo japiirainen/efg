@@ -1,32 +1,37 @@
 name: "CI"
 on:
-  # Run only when pushing to main branch, and making PRs
+  # Run only when pushing to master branch, and making PRs
   push:
     branches:
-      - main
+      - master
   pull_request:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v17
+      - uses: nixbuild/nix-quick-install-action@v22
         with:
-          extra_nix_config: |
+          nix_conf: |
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - name: Cache Nix dependencies
         run: |
           nix develop -j 4 -c echo
-      - name: Flake checks
-        run: |
-          # Sandbox must be disabled due to HLS,
-          # https://github.com/haskell/haskell-language-server/issues/3128
-          nix --option sandbox false build .#check --no-link -L
-      - name: Hlint
-        run: |
-          nix develop -j auto -c hlint src
-      - name: Build
+      - name: Build 🔨
         id: build
         run: |
           nix build -j auto -L
+      - name: Flake checks 🧪
+        run: |
+          # Because 'nix flake check' is not system-aware
+          # See https://srid.ca/haskell-template/checks
+          nix run nixpkgs#sd \
+            'systems = nixpkgs.lib.systems.flakeExposed' \
+            'systems = [ "x86_64-linux" ]' \
+            flake.nix
+          # Sandbox must be disabed for:
+          # https://github.com/srid/haskell-flake/issues/21
+          nix \
+            --option sandbox false \
+            flake check -L

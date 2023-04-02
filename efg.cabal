@@ -17,7 +17,7 @@ source-repository head
 common shared
   mixins:
     base hiding (Prelude),
-    relude (Relude as Prelude, Relude.Container.One),
+    relude (Relude as Prelude, Relude.Extra, Relude.Container.One),
     relude
   ghc-options:
     -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns

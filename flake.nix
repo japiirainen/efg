@@ -20,10 +20,8 @@
         inputs.mission-control.flakeModule
       ];
       perSystem = { self', system, lib, config, pkgs, ... }: {
-        # The "main" project. You can have multiple projects, but this template
-        # has only one.
         haskellProjects.main = {
-          packages.haskell-template.root = ./.; # Auto-discovered by haskell-flake
+          packages.efg.root = ./.; # Auto-discovered by haskell-flake
           overrides = self: super: { };
           devShell = {
             tools = hp: {
@@ -77,14 +75,20 @@
           run = {
             description = "Run the project with ghcid auto-recompile";
             exec = ''
-              ghcid -c "cabal repl exe:haskell-template" --warnings -T :main
+              ghcid -c "cabal repl exe:efg" --warnings -T :main
             '';
             category = "Primary";
+          };
+          test = {
+            description = "Run tests";
+            exec = ''
+              ghcid -c "cabal repl test:tasty" -T :main
+            '';
           };
         };
 
         # Default package.
-        packages.default = self'.packages.main-haskell-template;
+        packages.default = self'.packages.main-efg;
 
         # Default shell.
         devShells.default =
