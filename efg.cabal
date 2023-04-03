@@ -32,6 +32,8 @@ library
   default-extensions:
     OverloadedStrings
     TypeApplications
+    RecordWildCards
+    LambdaCase
 
   build-depends:
     , ansi-terminal
