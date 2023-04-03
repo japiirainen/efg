@@ -3,7 +3,7 @@ arithmetic
 ```ocaml
 let x = 10 + 3 * 5
 
-in x ^ 3
+x ^ 3
 ```
 
 functions
