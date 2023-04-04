@@ -26,3 +26,4 @@ cabal.project.local
 cabal.project.local~
 .ghc.environment.*
 result
+.stack.yaml.lock

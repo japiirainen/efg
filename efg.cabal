@@ -27,6 +27,8 @@ common shared
 library
   import:             shared
   exposed-modules:    Efg
+                    , Efg.Errors
+                    , Efg.Parser
   other-modules:      Paths_efg
   hs-source-dirs:     src
   default-extensions:
@@ -34,6 +36,9 @@ library
     TypeApplications
     RecordWildCards
     LambdaCase
+    DerivingStrategies
+    GeneralizedNewtypeDeriving
+    BlockArguments
 
   build-depends:
     , ansi-terminal
