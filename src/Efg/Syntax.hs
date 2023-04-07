@@ -70,4 +70,8 @@ type CDecl = WithSrc CDecl'
 
 data CDecl'
   = CExpr Group
+  | CLet Group CBlock
   deriving stock (Show)
+
+newtype CBlock = CBlock [CDecl]
+  deriving newtype (Show)

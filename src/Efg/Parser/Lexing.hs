@@ -97,7 +97,7 @@ eol :: Parser ()
 eol = void Megaparsec.eol
 
 eolf :: Parser ()
-eolf = void Megaparsec.eof <|> eol
+eolf = eol <|> Megaparsec.eof
 
 nextChar :: Lexer Char
 nextChar = do

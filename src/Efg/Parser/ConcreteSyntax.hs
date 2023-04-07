@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
 
 module Efg.Parser.ConcreteSyntax where
@@ -11,6 +12,11 @@ import Text.Megaparsec (ParseError, ParseErrorBundle (ParseErrorBundle), (<?>))
 import qualified Control.Monad.Combinators.Expr as Expr
 import qualified Text.Megaparsec as Megaparsec
 import qualified Text.Megaparsec.Char as Megaparsec
+
+pattern ExprBlock :: Group -> CBlock
+pattern ExprBlock g <- (CBlock [WithSrc _ (CExpr g)])
+  where
+    ExprBlock g = CBlock [WithSrc Nothing (CExpr g)]
 
 parseUModule :: ModuleSrcName -> Text -> UModule
 parseUModule name src =
@@ -57,18 +63,33 @@ topLetOrExpr =
     d -> pure (TopDecl d)
 
 topLet :: Parser CTopDecl'
-topLet = do
-  CDecl <$> cDecl
+topLet =
+  optional nextLine *> do
+    CDecl <$> cDecl
 
 cDecl :: Parser CDecl'
 cDecl = simpleLet
+
+cBlock :: Parser CBlock
+cBlock =
+  cBlock' >>= \case
+    Left block -> pure block
+    Right expr -> pure $ ExprBlock expr
+
+cBlock' :: Parser (Either CBlock Group)
+cBlock' = Left <$> realBlock <|> Right <$> cGroup
+
+realBlock :: Parser CBlock
+realBlock =
+  withIndent $
+    CBlock <$> mayNotBreak (withSrc cDecl `Megaparsec.sepBy1` (semicolon <|> Megaparsec.try nextLine))
 
 simpleLet :: Parser CDecl'
 simpleLet = do
   lhs <- cGroupNoEqual
   next <- nextChar
   case next of
-    -- '=' -> sym "=" >> CLet lhs <$> cBlock
+    '=' -> sym "=" >> CLet lhs <$> cBlock
     _ -> pure (CExpr lhs)
 
 cGroup :: Parser Group
