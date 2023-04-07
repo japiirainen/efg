@@ -9,7 +9,9 @@ module Efg.Errors (
   SrcPosCtx,
   SrcTextCtx,
   SrcPos,
+  throw,
   Fallible (..),
+  FallibleApplicative (..),
   Catchable (..),
   CtxReader (..),
   catchErrExcept,
@@ -53,7 +55,7 @@ rightmostJust = flip leftmostJust
 data Err = Err
   { errType :: ErrType
   , errCtx :: ErrCtx
-  , errorMessage :: Text
+  , errorMessage :: String
   }
   deriving stock (Show, Eq)
 
@@ -114,23 +116,19 @@ instance Monad Except where
   {-# INLINE (>>=) #-}
 
 instance MonadFail Except where
-  fail msg = Failure (Errs [Err CompilerErr mempty (toText msg)])
+  fail msg = Failure (Errs [Err CompilerErr mempty msg])
 
-throw :: Fallible m => ErrType -> Text -> m a
+throw :: Fallible m => ErrType -> String -> m a
 throw errTy s = throwErrs $ Errs [addCompilerStackCtx $ Err errTy mempty s]
 {-# INLINE throw #-}
 
 addCompilerStackCtx :: Err -> Err
 addCompilerStackCtx (Err ty ctx msg) = Err ty ctx {stackCtx = compilerStack} msg
   where
-#ifdef EFG_DEBUG
-    compilerStack = getCurrentCallStack ()
-#else
     compilerStack = stackCtx ctx
-#endif
 
 instance MonadFail FallibleM where
-  fail msg = throw MonadFailErr (toText msg)
+  fail = throw MonadFailErr
   {-# INLINE fail #-}
 
 instance Fallible Except where

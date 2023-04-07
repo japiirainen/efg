@@ -29,6 +29,9 @@ library
   exposed-modules:    Efg
                     , Efg.Errors
                     , Efg.Parser
+                    , Efg.Syntax
+                    , Efg.Parser.Lexing
+                    , Efg.Parser.ConcreteSyntax
   other-modules:      Paths_efg
   hs-source-dirs:     src
   default-extensions:

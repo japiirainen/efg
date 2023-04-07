@@ -27,3 +27,4 @@ cabal.project.local~
 .ghc.environment.*
 result
 .stack.yaml.lock
+t.efg
