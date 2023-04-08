@@ -1,77 +1,39 @@
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE DeriveTraversable #-}
 
-module Efg.Syntax where
+module Efg.Syntax (
+  ) where
 
-import Efg.Errors (SrcPosCtx)
+import Control.Lens (Plated (..))
+import Data.Bifunctor (Bifunctor (..))
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.Scientific (Scientific)
+import Data.Sequence (Seq ((:<|)))
+import Data.String (IsString (..))
+import Data.Text (Text)
+import GHC.Generics (Generic)
 
--- modules
+import Efg.Pretty (Pretty (..), keyword, label, punctuation)
+import Language.Haskell.TH.Syntax (Lift)
+import Numeric.Natural (Natural)
+import Prettyprinter (Doc)
+import Prettyprinter.Render.Terminal (AnsiStyle)
 
-data ModuleSrcName = Prelude | User Text
-  deriving stock (Show, Eq, Ord)
+import qualified Data.Text as Text
+import qualified Efg.Pretty as Pretty
+import qualified Prettyprinter as Pretty
 
-data UModule = UModule
-  { uModuleName :: ModuleSrcName
-  , uModuleImports :: [ModuleSrcName]
-  , uModuleSrcBlocks :: [SrcBlock]
-  }
-  deriving stock (Show)
+data Syntax s a
+  = Variable {location :: s, name :: Text, index :: Int}
+  | Operator {location :: s, left :: Syntax s a, operatorLocation :: s, operator :: Operator, right :: Syntax s a}
+  deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
-data SrcBlock = SrcBlock
-  { sbLine :: Int
-  , sbOffset :: Int
-  , sbText :: Text
-  , sbContents :: SrcBlock'
-  }
-  deriving stock (Show)
-
-data SrcBlock'
-  = TopDecl CTopDecl
-  | UnParsable Bool String
-  deriving stock (Show)
-
--- concrete syntax
-
-data WithSrc a = WithSrc SrcPosCtx a
-  deriving stock (Show, Functor)
-
-type Group = WithSrc Group'
-
-data Group'
-  = CNat Word64
-  | CInt Int
-  | CFloat Double
-  | CBin Bin Group Group
-  | CIdentifier Text
-  | CChar Char
-  | CParens [Group]
-  | CBrackets [Group]
-  | CBraces [Group]
-  deriving stock (Show)
-
-type Bin = WithSrc Bin'
-
-data Bin'
-  = EvalBinOp Text
-  | Dot
-  deriving stock (Show, Eq, Ord)
-
-readBin :: Text -> Bin'
-readBin = \case
-  "." -> Dot
-  name -> EvalBinOp name
-
-type CTopDecl = WithSrc CTopDecl'
-
-data CTopDecl'
-  = CDecl CDecl'
-  deriving stock (Show)
-
-type CDecl = WithSrc CDecl'
-
-data CDecl'
-  = CExpr Group
-  | CLet Group CBlock
-  deriving stock (Show)
-
-newtype CBlock = CBlock [CDecl]
-  deriving newtype (Show)
+data Operator
+  = And
+  | Or
+  | Plus
+  | Times
+  deriving stock (Eq, Generic, Lift, Show)

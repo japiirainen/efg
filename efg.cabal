@@ -27,11 +27,12 @@ common shared
 library
   import:             shared
   exposed-modules:    Efg
-                    , Efg.Errors
                     , Efg.Parser
+                    , Efg.Parser.Lexer
+                    , Efg.Parser.SyntaxParser
+                    , Efg.Parser.Location
+                    , Efg.Pretty
                     , Efg.Syntax
-                    , Efg.Parser.Lexing
-                    , Efg.Parser.ConcreteSyntax
   other-modules:      Paths_efg
   hs-source-dirs:     src
   default-extensions:
@@ -42,6 +43,9 @@ library
     DerivingStrategies
     GeneralizedNewtypeDeriving
     BlockArguments
+    KindSignatures
+    DataKinds
+    GADTs
 
   build-depends:
     , ansi-terminal
@@ -50,9 +54,11 @@ library
     , filepath
     , haskeline
     , megaparsec
-    , microlens
-    , microlens-th
     , modern-uri
+    , Earley
+    , template-haskell
+    , lens
+    , generic-lens
     , mtl
     , optparse-applicative
     , parser-combinators
