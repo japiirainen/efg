@@ -33,6 +33,7 @@ library
                     , Efg.Parser.Location
                     , Efg.Pretty
                     , Efg.Syntax
+                    , Efg.Type
   other-modules:      Paths_efg
   hs-source-dirs:     src
   default-extensions:
