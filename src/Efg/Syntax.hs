@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DeriveTraversable #-}
@@ -26,9 +24,15 @@ import qualified Data.Text as Text
 import qualified Efg.Pretty as Pretty
 import qualified Prettyprinter as Pretty
 
-data Syntax s a
-  = Variable {location :: s, name :: Text, index :: Int}
-  | Operator {location :: s, left :: Syntax s a, operatorLocation :: s, operator :: Operator, right :: Syntax s a}
+type Name = Text
+
+data TopDecl s a
+  = Expr {expr :: Expr s a}
+  | Def {defName :: Text, expr :: Expr s a}
+
+data Expr s a
+  = Variable {location :: s, name :: Text}
+  | Operator {location :: s, left :: Expr s a, operatorLocation :: s, operator :: Operator, right :: Expr s a}
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
 data Operator
