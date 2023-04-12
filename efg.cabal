@@ -28,9 +28,9 @@ library
   import:             shared
   exposed-modules:    Efg
                     , Efg.Parser
-                    , Efg.Parser.Lexer
-                    , Efg.Parser.SyntaxParser
+                    , Efg.Parser.Lexing
                     , Efg.Parser.Location
+                    , Efg.Parser.Parsing
                     , Efg.Pretty
                     , Efg.Syntax
                     , Efg.Type
