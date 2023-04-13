@@ -1,3 +1,6 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase #-}
+
 module Efg.Parser.Lexing where
 
 import Efg.Parser.Location (Location (..), Offset (..))

@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Efg.Parser.Parsing where
 
 import Efg.Parser.Lexing
