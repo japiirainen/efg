@@ -4,6 +4,9 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module Efg.Syntax (
+  Module (..),
+  SourceBlock (..),
+  SourceBlock' (..),
   TopDecl (..),
   Expr (..),
   Scalar (..),
@@ -13,7 +16,6 @@ module Efg.Syntax (
   Name,
 ) where
 
-import Data.Scientific (Scientific)
 import Efg.Type (Type)
 import Prelude hiding (Type)
 
@@ -29,9 +31,30 @@ import qualified Prettyprinter as Pretty
 
 type Name = Text
 
+type ReachedEOF = Bool
+
+data Module loc = Module
+  { moduleName :: Text
+  , moduleSourceBlocks :: [SourceBlock loc]
+  }
+  deriving stock (Show, Generic)
+
+data SourceBlock loc = SourceBlock
+  { sbLine :: Int
+  , sbOffset :: Int
+  , sbText :: Text
+  , sbContents :: SourceBlock' loc
+  }
+  deriving stock (Show, Generic)
+
+data SourceBlock' loc
+  = SBTopDecl (TopDecl loc)
+  | Unparsable ReachedEOF String
+  deriving stock (Show, Generic)
+
 data TopDecl loc
-  = Expr {expr :: Expr loc}
-  | Def {name :: Name, body :: Expr loc}
+  = TopExpr {expr :: Expr loc}
+  | TopDef {name :: Name, body :: Expr loc}
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
 instance (Pretty a) => Pretty (TopDecl a) where
@@ -59,6 +82,13 @@ data Operator
   | Times
   deriving stock (Eq, Generic, Lift, Show)
 
+instance IsString Operator where
+  fromString "&&" = And
+  fromString "||" = Or
+  fromString "+" = Plus
+  fromString "*" = Times
+  fromString _ = error "unreachable"
+
 instance Pretty Operator where
   pretty And = Pretty.operator "&&"
   pretty Or = Pretty.operator "||"
@@ -66,7 +96,7 @@ instance Pretty Operator where
   pretty Times = Pretty.operator "*"
 
 data Scalar
-  = Real Scientific
+  = Real Double
   | Integer Integer
   | Natural Natural
   | Bool Bool
@@ -158,8 +188,8 @@ instance Pretty a => Pretty (Binding a) where
           <> pretty assignment
 
 prettyTopDecl :: Pretty a => TopDecl a -> Doc AnsiStyle
-prettyTopDecl (Expr expr) = prettyExpression expr
-prettyTopDecl Def {..} =
+prettyTopDecl (TopExpr expr) = prettyExpression expr
+prettyTopDecl TopDef {..} =
   Pretty.group (Pretty.flatAlt long short)
   where
     short = keyword "def" <> " " <> label (pretty name) <> " " <> punctuation "=" <> " " <> pretty body
