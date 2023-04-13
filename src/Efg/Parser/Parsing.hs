@@ -69,8 +69,18 @@ leafGroup = do
     '(' -> parens pGroup
     _ | Char.isDigit next -> pNum
     '\"' -> pStr
+    '\\' -> pLam
     'i' -> pIf <|> pVariable
     _ -> pVariable
+
+pLam :: Parser (Syntax.Expr Offset)
+pLam = mayNotBreak $ withOffset \location -> do
+  sym "\\"
+  (name, (start, _)) <- withPos pName
+  mayNotBreak (sym ".")
+  let nameLocation = Offset start
+  body <- pGroup
+  return $ Syntax.Lambda {..}
 
 pIf :: Parser (Syntax.Expr Offset)
 pIf = mayNotBreak $ withOffset \location -> do
@@ -126,8 +136,8 @@ infixSym s = mayBreak $ sym $ toText s
 
 symOp :: Text -> Parser (Syntax.Expr Offset -> Syntax.Expr Offset -> Syntax.Expr Offset)
 symOp s = withOffset \location -> do
-  label "infix operator" (infixSym s)
-  return $ binApp (fromString (toString s)) location
+  (_, (start, _)) <- withPos $ label "infix operator" (infixSym s)
+  return $ binApp (fromString (toString s)) (Offset start) location
 
-binApp :: Syntax.Operator -> Offset -> Syntax.Expr Offset -> Syntax.Expr Offset -> Syntax.Expr Offset
-binApp operator location left right = Syntax.Operator {operatorLocation = location, ..}
+binApp :: Syntax.Operator -> Offset -> Offset -> Syntax.Expr Offset -> Syntax.Expr Offset -> Syntax.Expr Offset
+binApp operator operatorLocation location left right = Syntax.Operator {..}
