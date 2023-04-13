@@ -26,40 +26,41 @@ common shared
 
 library
   import:             shared
-  exposed-modules:    Efg
-                    , Efg.Parser
-                    , Efg.Parser.Lexing
-                    , Efg.Parser.Location
-                    , Efg.Parser.Parsing
-                    , Efg.Pretty
-                    , Efg.Syntax
-                    , Efg.Type
+  exposed-modules:
+    Efg
+    Efg.Parser
+    Efg.Parser.Lexing
+    Efg.Parser.Location
+    Efg.Parser.Parsing
+    Efg.Pretty
+    Efg.Syntax
+    Efg.Type
+
   other-modules:      Paths_efg
   hs-source-dirs:     src
   default-extensions:
-    OverloadedStrings
-    TypeApplications
-    RecordWildCards
-    LambdaCase
-    DerivingStrategies
-    GeneralizedNewtypeDeriving
     BlockArguments
-    KindSignatures
     DataKinds
+    DerivingStrategies
     GADTs
+    GeneralizedNewtypeDeriving
+    KindSignatures
+    LambdaCase
+    OverloadedStrings
+    RecordWildCards
+    TypeApplications
 
   build-depends:
     , ansi-terminal
     , base
     , containers
+    , Earley
     , filepath
+    , generic-lens
     , haskeline
+    , lens
     , megaparsec
     , modern-uri
-    , Earley
-    , template-haskell
-    , lens
-    , generic-lens
     , mtl
     , optparse-applicative
     , parser-combinators
@@ -69,6 +70,7 @@ library
     , repline
     , safe-exceptions
     , scientific
+    , template-haskell
     , terminal-size
     , text
     , unordered-containers
