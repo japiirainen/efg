@@ -29,7 +29,7 @@ data Highlight
 data Options
   = Interpret {file :: FilePath, highlight :: Highlight}
   | Parse {file :: FilePath, highlight :: Highlight}
-  | Format {file :: FilePath}
+  | Format {file :: FilePath, highlight :: Highlight}
 
 parserInfo :: ParserInfo Options
 parserInfo =
@@ -66,6 +66,7 @@ parser = do
             ( Options.help "File to format"
                 <> Options.metavar "FILE"
             )
+        highlight <- parseHighlight
         return Format {..}
 
   Opts.hsubparser
@@ -112,9 +113,14 @@ getRender highlight = do
   width <- getWidth
   return (Efg.Pretty.renderIO color width stdout)
 
+getCode :: FilePath -> IO Text
+getCode = \case
+  "-" -> Text.IO.getContents
+  fp -> decodeUtf8 <$> readFileBS fp
+
 parse_ :: FilePath -> Highlight -> IO ()
 parse_ filepath highlight = do
-  code <- decodeUtf8 <$> readFileBS filepath
+  code <- getCode filepath
   let module' = Parser.parseModule filepath code
   let errors = Syntax.moduleErrors module'
 
@@ -128,9 +134,9 @@ parse_ filepath highlight = do
   render <- getRender highlight
   render (Efg.Pretty.pretty module' <> Pretty.hardline)
 
-formatFile :: FilePath -> IO ()
-formatFile filepath = do
-  code <- decodeUtf8 <$> readFileBS filepath
+formatFile :: FilePath -> Highlight -> IO ()
+formatFile filepath highlight = do
+  code <- getCode filepath
   let module' = Parser.parseModule filepath code
   let errors = Syntax.moduleErrors module'
   unless (null errors) $ do
@@ -140,8 +146,12 @@ formatFile filepath = do
       Text.IO.hPutStr stderr "\n"
       exitFailure
 
-  withFile filepath WriteMode $ \handle -> do
-    Efg.Pretty.renderIO False 80 handle (Efg.Pretty.pretty module' <> Pretty.hardline)
+  render <- getRender highlight
+  render (Efg.Pretty.pretty module' <> Pretty.hardline)
+
+  unless (filepath == "-") $ do
+    withFile filepath WriteMode $ \handle -> do
+      Efg.Pretty.renderIO False 80 handle (Efg.Pretty.pretty module')
 
 main :: IO ()
 main = do
@@ -152,4 +162,4 @@ main = do
       Text.IO.hPutStr stderr "Interpreting not implemented yet\n"
       exitFailure
     Parse file highlight -> parse_ file highlight
-    Format file -> formatFile file
+    Format file highlight -> formatFile file highlight
