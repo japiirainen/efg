@@ -12,6 +12,8 @@ import qualified Control.Monad.Combinators.Expr as Expr
 import qualified Data.Char as Char
 import qualified Efg.Syntax as Syntax
 
+type LExpr = Syntax.Expr Offset
+
 sourceBlocks :: Parser [SourceBlock Offset]
 sourceBlocks = manyTill sourceBlock eof
 
@@ -49,20 +51,20 @@ topDecl = topDecl' <* eolf
       TopExpr <$> expr_
         <|> topDef
 
-expr_ :: Parser (Syntax.Expr Offset)
+expr_ :: Parser LExpr
 expr_ = pGroup -- TODO
 
-def_ :: Parser (Text, Syntax.Expr Offset)
+def_ :: Parser (Text, LExpr)
 def_ = do
   keyword "def"
   n <- pName
   expr <- expr_
   return (n, expr)
 
-pGroup :: Parser (Syntax.Expr Offset)
+pGroup :: Parser LExpr
 pGroup = makeExprParser leafGroup ops
 
-leafGroup :: Parser (Syntax.Expr Offset)
+leafGroup :: Parser LExpr
 leafGroup = do
   next <- nextChar
   case next of
@@ -73,7 +75,7 @@ leafGroup = do
     'i' -> pIf <|> pVariable
     _ -> pVariable
 
-pLam :: Parser (Syntax.Expr Offset)
+pLam :: Parser LExpr
 pLam = mayNotBreak $ withOffset \location -> do
   sym "\\"
   (name, (start, _)) <- withPos pName
@@ -82,7 +84,7 @@ pLam = mayNotBreak $ withOffset \location -> do
   body <- pGroup
   return $ Syntax.Lambda {..}
 
-pIf :: Parser (Syntax.Expr Offset)
+pIf :: Parser LExpr
 pIf = mayNotBreak $ withOffset \location -> do
   keyword "if"
   predicate <- pGroup
@@ -92,18 +94,18 @@ pIf = mayNotBreak $ withOffset \location -> do
   ifFalse <- pGroup
   return $ Syntax.If {..}
 
-pVariable :: Parser (Syntax.Expr Offset)
+pVariable :: Parser LExpr
 pVariable = withOffset \location -> do
   name <- pName
   return $ Syntax.Variable {..}
 
-pStr :: Parser (Syntax.Expr Offset)
+pStr :: Parser LExpr
 pStr = withOffset \location -> do
   s <- strLit
   let scalar = Syntax.Text (toText s)
   return $ Syntax.Scalar {..}
 
-pNum :: Parser (Syntax.Expr Offset)
+pNum :: Parser LExpr
 pNum = withOffset \location -> do
   scalar <- number
   return $ Syntax.Scalar {..}
@@ -117,7 +119,7 @@ type PrecTable a = [[(Text, Expr.Operator Parser a)]]
 makeExprParser :: Parser a -> PrecTable a -> Parser a
 makeExprParser p tbs = Expr.makeExprParser p (map (map snd) tbs)
 
-ops :: PrecTable (Syntax.Expr Offset)
+ops :: PrecTable LExpr
 ops =
   [ [symOpL "*", symOpL "/"]
   , [symOpL "+", symOpL "-"]
@@ -125,19 +127,19 @@ ops =
   , [symOpN "==", symOpN "!="]
   ]
 
-symOpL :: Text -> (Text, Expr.Operator Parser (Syntax.Expr Offset))
+symOpL :: Text -> (Text, Expr.Operator Parser LExpr)
 symOpL s = (s, Expr.InfixL (symOp s))
 
-symOpN :: Text -> (Text, Expr.Operator Parser (Syntax.Expr Offset))
+symOpN :: Text -> (Text, Expr.Operator Parser LExpr)
 symOpN s = (s, Expr.InfixN (symOp s))
 
 infixSym :: Text -> Parser ()
 infixSym s = mayBreak $ sym $ toText s
 
-symOp :: Text -> Parser (Syntax.Expr Offset -> Syntax.Expr Offset -> Syntax.Expr Offset)
+symOp :: Text -> Parser (LExpr -> LExpr -> LExpr)
 symOp s = withOffset \location -> do
   (_, (start, _)) <- withPos $ label "infix operator" (infixSym s)
   return $ binApp (fromString (toString s)) (Offset start) location
 
-binApp :: Syntax.Operator -> Offset -> Offset -> Syntax.Expr Offset -> Syntax.Expr Offset -> Syntax.Expr Offset
+binApp :: Syntax.Operator -> Offset -> Offset -> LExpr -> LExpr -> LExpr
 binApp operator operatorLocation location left right = Syntax.Operator {..}
