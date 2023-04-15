@@ -2,9 +2,12 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Efg.Syntax (
   Module (..),
+  moduleErrors,
+  moduleTopDecls,
   SourceBlock (..),
   SourceBlock' (..),
   TopDecl (..),
@@ -38,6 +41,18 @@ data Module loc = Module
   , moduleSourceBlocks :: [SourceBlock loc]
   }
   deriving stock (Show, Generic)
+
+moduleErrors :: Module loc -> [String]
+moduleErrors Module {moduleSourceBlocks} =
+  [ sbText
+  | SourceBlock {sbContents = Unparsable _ sbText, sbLine = _, sbOffset = _} <- moduleSourceBlocks
+  ]
+
+moduleTopDecls :: Module loc -> [TopDecl loc]
+moduleTopDecls Module {moduleSourceBlocks} =
+  [ sbContents
+  | SourceBlock {sbContents = SBTopDecl sbContents, sbLine = _, sbOffset = _} <- moduleSourceBlocks
+  ]
 
 data SourceBlock loc = SourceBlock
   { sbLine :: Int
@@ -211,13 +226,12 @@ prettyExpression expr@Lambda {} =
   where
     short = punctuation "\\" <> prettyShort expr
     long = Pretty.align (prettyLong expr)
-    prettyShort Lambda {..} = label (pretty name) <> " " <> prettyShort body
-    prettyShort other = punctuation "->" <> prettyExpression other
+    prettyShort Lambda {..} = label (pretty name) <> prettyShort body
+    prettyShort other = punctuation "." <> " " <> prettyExpression other
     prettyLong Lambda {..} =
       punctuation "\\"
         <> label (pretty name)
-        <> " "
-        <> Pretty.punctuation "->"
+        <> Pretty.punctuation "."
         <> Pretty.hardline
         <> prettyLong body
     prettyLong other = "  " <> prettyExpression other

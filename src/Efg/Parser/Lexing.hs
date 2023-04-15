@@ -102,7 +102,7 @@ instance IsString Keyword where
 
 keywordToken :: Keyword -> String
 keywordToken = \case
-  KWDef -> "dev"
+  KWDef -> "def"
   KWIf -> "if"
   KWThen -> "then"
   KWElse -> "else"
@@ -116,6 +116,30 @@ keyword kw =
     try $
       P.string (fromString $ keywordToken kw)
         >> notFollowedBy nameTailChar
+
+data BuiltinValue
+  = BITrue
+  | BIFalse
+  deriving stock (Eq, Ord, Show, Bounded, Enum)
+
+instance IsString BuiltinValue where
+  fromString = \case
+    "true" -> BITrue
+    "false" -> BIFalse
+    _ -> "Invalid builtin-value"
+
+builtinToken :: BuiltinValue -> String
+builtinToken = \case
+  BITrue -> "true"
+  BIFalse -> "false"
+
+builtinValue :: BuiltinValue -> Lexer ()
+builtinValue bi =
+  lexeme $
+    try $
+      P.string (fromString $ builtinToken bi)
+        >> notFollowedBy nameTailChar
+
 sym :: Text -> Lexer ()
 sym s = lexeme $ try $ P.string s >> notFollowedBy symChar
 

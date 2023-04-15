@@ -4,6 +4,7 @@ module Efg.Parser.Location (
   renderError,
 ) where
 
+import Efg.Pretty (Pretty (pretty))
 import Text.Megaparsec (PosState (..), SourcePos (..))
 
 import qualified Data.Text as Text
@@ -12,6 +13,9 @@ import qualified Text.Megaparsec.Stream as Stream
 
 newtype Offset = Offset {unOffset :: Int}
   deriving newtype (Eq, Num, Show)
+
+instance Pretty Offset where
+  pretty = pretty . unOffset
 
 data Location = Location
   { filename :: String

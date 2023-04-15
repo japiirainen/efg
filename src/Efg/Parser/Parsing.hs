@@ -38,28 +38,28 @@ consumeTillBreak :: Parser ()
 consumeTillBreak = void $ manyTill anySingle $ eof <|> void (try (eol >> eol))
 
 sourceBlock' :: Parser (SourceBlock' Offset)
-sourceBlock' = SBTopDecl <$> topDecl
+sourceBlock' =
+  optional (try nextLine)
+    *> (SBTopDecl <$> topDecl)
 
 topDecl :: Parser (TopDecl Offset)
 topDecl = topDecl' <* eolf
   where
-    topDef = do
-      (n, expr) <- def_
-      return $ TopDef n expr
     topDecl' :: Parser (TopDecl Offset)
     topDecl' =
-      TopExpr <$> expr_
-        <|> topDef
+      def_
+        <|> TopExpr <$> expr_
 
 expr_ :: Parser LExpr
 expr_ = pGroup -- TODO
 
-def_ :: Parser (Text, LExpr)
+def_ :: Parser (TopDecl Offset)
 def_ = do
   keyword "def"
-  n <- pName
-  expr <- expr_
-  return (n, expr)
+  name <- pName
+  sym "="
+  body <- try (withIndent expr_) <|> expr_
+  return TopDef {..}
 
 pGroup :: Parser LExpr
 pGroup = makeExprParser leafGroup ops
@@ -73,7 +73,15 @@ leafGroup = do
     '\"' -> pStr
     '\\' -> pLam
     'i' -> pIf <|> pVariable
+    't' -> pBool BITrue <|> pVariable
+    'f' -> pBool BIFalse <|> pVariable
     _ -> pVariable
+
+pBool :: BuiltinValue -> Parser LExpr
+pBool biv = withOffset \location -> do
+  builtinValue biv
+  let scalar = Syntax.Bool (biv == BITrue)
+  return $ Syntax.Scalar {..}
 
 pLam :: Parser LExpr
 pLam = mayNotBreak $ withOffset \location -> do
@@ -121,11 +129,20 @@ makeExprParser p tbs = Expr.makeExprParser p (map (map snd) tbs)
 
 ops :: PrecTable LExpr
 ops =
-  [ [symOpL "*", symOpL "/"]
+  [ [juxt]
+  , [symOpL "*", symOpL "/"]
   , [symOpL "+", symOpL "-"]
   , [symOpN "<", symOpN "<=", symOpN ">", symOpN ">="]
   , [symOpN "==", symOpN "!="]
+  , [symOpL "&&"]
+  , [symOpL "||"]
   ]
+
+juxt :: (Text, Expr.Operator Parser LExpr)
+juxt = ("space", Expr.InfixL $ withOffset \location -> sc $> funApp location)
+
+funApp :: Offset -> LExpr -> LExpr -> LExpr
+funApp location function argument = Syntax.Application {..}
 
 symOpL :: Text -> (Text, Expr.Operator Parser LExpr)
 symOpL s = (s, Expr.InfixL (symOp s))
