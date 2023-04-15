@@ -87,6 +87,7 @@ data Keyword
   | KWLet
   | KWIn
   | KWFix
+  | KWModule
   deriving stock (Eq, Ord, Show, Bounded, Enum)
 
 instance IsString Keyword where
@@ -98,6 +99,7 @@ instance IsString Keyword where
     "let" -> KWLet
     "in" -> KWIn
     "fix" -> KWFix
+    "module" -> KWModule
     _ -> error "Invalid keyword"
 
 keywordToken :: Keyword -> String
@@ -109,6 +111,7 @@ keywordToken = \case
   KWLet -> "let"
   KWIn -> "in"
   KWFix -> "fix"
+  KWModule -> "module"
 
 keyword :: Keyword -> Lexer ()
 keyword kw =
@@ -147,18 +150,38 @@ symChar :: Parser Char
 symChar = token (\c -> if HS.member c symChars then Just c else Nothing) mempty
 
 symChars :: HashSet Char
-symChars = HS.fromList ("!#$%&*+./<=>?@\\^|-~:" :: String)
+symChars = HS.fromList ".,!$^&*:-~+/=<>|?\\@#"
 
 nameTailChar :: Parser Char
 nameTailChar = P.alphaNumChar <|> P.char '_' <|> P.char '\''
 
-pName :: Lexer Syntax.Name
-pName = label "name" $ try $ lexeme do
-  c0 <- P.lowerChar
+data NameFirst
+  = Upper
+  | Lower
+  | Anything
+
+nameFirstChar :: NameFirst -> Parser Char
+nameFirstChar = \case
+  Upper -> P.upperChar
+  Lower -> P.lowerChar
+  Anything -> P.alphaNumChar
+
+pName :: NameFirst -> Lexer Syntax.Name
+pName nf = label "name" $ try $ lexeme do
+  c0 <- nameFirstChar nf
   cs <- takeWhileP Nothing (\c -> Char.isAlphaNum c || c == '_' || c == '\'')
   let n = Text.cons c0 cs
   guard (not (isKeyword n))
   return n
+
+loName :: Lexer Syntax.Name
+loName = pName Lower
+
+upName :: Lexer Syntax.Name
+upName = pName Upper
+
+anyName :: Lexer Syntax.Name
+anyName = pName Anything
 
 isKeyword :: Text -> Bool
 isKeyword candidate = candidate `HS.member` keywordSet

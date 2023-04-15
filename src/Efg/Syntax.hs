@@ -42,6 +42,16 @@ data Module loc = Module
   }
   deriving stock (Show, Generic)
 
+instance (Pretty a) => Pretty (Module a) where
+  pretty Module {moduleName = _, moduleSourceBlocks} =
+    Pretty.vsep (sepBlocks (fmap pretty moduleSourceBlocks))
+    where
+      sepBlocks :: [Doc AnsiStyle] -> [Doc AnsiStyle]
+      sepBlocks = \case
+        [] -> []
+        [x] -> [x]
+        (x : xs) -> x : Pretty.softline' : sepBlocks xs
+
 moduleErrors :: Module loc -> [String]
 moduleErrors Module {moduleSourceBlocks} =
   [ sbText
@@ -62,10 +72,18 @@ data SourceBlock loc = SourceBlock
   }
   deriving stock (Show, Generic)
 
+instance (Pretty a) => Pretty (SourceBlock a) where
+  pretty SourceBlock {sbContents} = pretty sbContents
+
 data SourceBlock' loc
   = SBTopDecl (TopDecl loc)
   | Unparsable ReachedEOF String
   deriving stock (Show, Generic)
+
+instance (Pretty a) => Pretty (SourceBlock' a) where
+  pretty = \case
+    SBTopDecl topDecl -> pretty topDecl
+    Unparsable _ _text -> mempty
 
 data TopDecl loc
   = TopExpr {expr :: Expr loc}
@@ -95,6 +113,10 @@ data Operator
   | Or
   | Plus
   | Times
+  | Divide
+  | Equal
+  | NotEqual
+  | Minus
   deriving stock (Eq, Generic, Lift, Show)
 
 instance IsString Operator where
@@ -102,6 +124,10 @@ instance IsString Operator where
   fromString "||" = Or
   fromString "+" = Plus
   fromString "*" = Times
+  fromString "/" = Divide
+  fromString "==" = Equal
+  fromString "!=" = NotEqual
+  fromString "-" = Minus
   fromString _ = error "unreachable"
 
 instance Pretty Operator where
@@ -109,6 +135,10 @@ instance Pretty Operator where
   pretty Or = Pretty.operator "||"
   pretty Plus = Pretty.operator "+"
   pretty Times = Pretty.operator "*"
+  pretty Divide = Pretty.operator "/"
+  pretty Equal = Pretty.operator "=="
+  pretty NotEqual = Pretty.operator "!="
+  pretty Minus = Pretty.operator "-"
 
 data Scalar
   = Real Double
@@ -225,16 +255,26 @@ prettyExpression expr@Lambda {} =
   Pretty.group (Pretty.flatAlt long short)
   where
     short = punctuation "\\" <> prettyShort expr
+
     long = Pretty.align (prettyLong expr)
-    prettyShort Lambda {..} = label (pretty name) <> prettyShort body
-    prettyShort other = punctuation "." <> " " <> prettyExpression other
+
+    prettyShort Lambda {..} =
+      label (pretty name)
+        <> " "
+        <> prettyShort body
+    prettyShort body =
+      punctuation "-> "
+        <> prettyExpression body
+
     prettyLong Lambda {..} =
       punctuation "\\"
         <> label (pretty name)
-        <> Pretty.punctuation "."
+        <> " "
+        <> punctuation "->"
         <> Pretty.hardline
         <> prettyLong body
-    prettyLong other = "  " <> prettyExpression other
+    prettyLong body =
+      "  " <> prettyExpression body
 prettyExpression Let {..} = Pretty.group (Pretty.flatAlt long short)
   where
     short =
@@ -331,13 +371,25 @@ prettyTimesExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
 prettyTimesExpression = prettyOperator Times prettyPlusExpression
 
 prettyPlusExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
-prettyPlusExpression = prettyOperator Plus prettyOrExpression
+prettyPlusExpression = prettyOperator Plus prettyMinusExpression
+
+prettyMinusExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyMinusExpression = prettyOperator Minus prettyOrExpression
 
 prettyOrExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
 prettyOrExpression = prettyOperator Or prettyAndExpression
 
 prettyAndExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
-prettyAndExpression = prettyOperator And prettyApplicationExpression
+prettyAndExpression = prettyOperator And prettyDivideExpression
+
+prettyDivideExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyDivideExpression = prettyOperator Divide prettyEqExpression
+
+prettyEqExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyEqExpression = prettyOperator Equal prettyNEqExpression
+
+prettyNEqExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyNEqExpression = prettyOperator Equal prettyApplicationExpression
 
 prettyApplicationExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
 prettyApplicationExpression expression

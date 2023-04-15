@@ -6,11 +6,12 @@ import Efg.Parser.Lexing
 import Efg.Parser.Location (Offset (..))
 import Efg.Syntax (SourceBlock (SourceBlock), SourceBlock' (..), TopDecl (..))
 import Text.Megaparsec hiding (ParseError, parse)
-import Text.Megaparsec.Error
+import Text.Megaparsec.Error (ParseError)
 
 import qualified Control.Monad.Combinators.Expr as Expr
 import qualified Data.Char as Char
 import qualified Efg.Syntax as Syntax
+import qualified Text.Megaparsec as P
 
 type LExpr = Syntax.Expr Offset
 
@@ -56,7 +57,7 @@ expr_ = pGroup -- TODO
 def_ :: Parser (TopDecl Offset)
 def_ = do
   keyword "def"
-  name <- pName
+  name <- anyName
   sym "="
   body <- try (withIndent expr_) <|> expr_
   return TopDef {..}
@@ -83,14 +84,19 @@ pBool biv = withOffset \location -> do
   let scalar = Syntax.Bool (biv == BITrue)
   return $ Syntax.Scalar {..}
 
+locatedName :: Parser (Offset, Syntax.Name)
+locatedName = withOffset \location -> do
+  name <- anyName
+  return (location, name)
+
 pLam :: Parser LExpr
 pLam = mayNotBreak $ withOffset \location -> do
   sym "\\"
-  (name, (start, _)) <- withPos pName
-  mayNotBreak (sym ".")
-  let nameLocation = Offset start
-  body <- pGroup
-  return $ Syntax.Lambda {..}
+  names <- P.some locatedName
+  mayNotBreak (sym "->")
+  body0 <- pGroup
+  let cons (nameLocation, name) body = Syntax.Lambda {..}
+  return $ foldr cons body0 names
 
 pIf :: Parser LExpr
 pIf = mayNotBreak $ withOffset \location -> do
@@ -104,7 +110,7 @@ pIf = mayNotBreak $ withOffset \location -> do
 
 pVariable :: Parser LExpr
 pVariable = withOffset \location -> do
-  name <- pName
+  name <- anyName
   return $ Syntax.Variable {..}
 
 pStr :: Parser LExpr

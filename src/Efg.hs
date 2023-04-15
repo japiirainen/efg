@@ -13,6 +13,7 @@ import qualified Efg.Pretty
 import qualified Efg.Syntax as Syntax
 import qualified Options.Applicative as Options
 import qualified Options.Applicative as Opts
+import qualified Prettyprinter as Pretty
 import qualified System.Console.ANSI as ANSI
 import qualified System.Console.Terminal.Size as Size
 
@@ -28,6 +29,7 @@ data Highlight
 data Options
   = Interpret {file :: FilePath, highlight :: Highlight}
   | Parse {file :: FilePath, highlight :: Highlight}
+  | Format {file :: FilePath}
 
 parserInfo :: ParserInfo Options
 parserInfo =
@@ -58,6 +60,14 @@ parser = do
         highlight <- parseHighlight
         return Parse {..}
 
+  let format = do
+        file <-
+          Opts.strArgument
+            ( Options.help "File to format"
+                <> Options.metavar "FILE"
+            )
+        return Format {..}
+
   Opts.hsubparser
     ( Opts.command
         "interpret"
@@ -70,6 +80,12 @@ parser = do
           ( Opts.info
               parse
               (Opts.progDesc "Parse a file")
+          )
+        <> Opts.command
+          "format"
+          ( Opts.info
+              format
+              (Opts.progDesc "Format a file")
           )
     )
   where
@@ -97,25 +113,35 @@ getRender highlight = do
   return (Efg.Pretty.renderIO color width stdout)
 
 parse_ :: FilePath -> Highlight -> IO ()
-parse_ filename highlight = do
-  code <- decodeUtf8 <$> readFileBS filename
-  let module' = Parser.parseModule filename code
+parse_ filepath highlight = do
+  code <- decodeUtf8 <$> readFileBS filepath
+  let module' = Parser.parseModule filepath code
   let errors = Syntax.moduleErrors module'
-  let topDecls = Syntax.moduleTopDecls module'
 
   unless (null errors) $ do
-    Text.IO.hPutStr stdout "Parse errors:\n"
+    Text.IO.hPutStrLn stdout "Parse errors:\n"
     forM_ errors $ \err -> do
       Text.IO.hPutStr stderr (toText err)
       Text.IO.hPutStr stderr "\n"
-    Text.IO.hPutStr stdout "------------------\n"
+    Text.IO.hPutStrLn stdout "------------------\n"
 
   render <- getRender highlight
-  unless (null topDecls) $ do
-    Text.IO.hPutStr stdout "Parsed source blocks:\n"
-    forM_ topDecls $ \topDecl -> do
-      render (Efg.Pretty.pretty topDecl)
-      Text.IO.hPutStr stdout "\n\n"
+  render (Efg.Pretty.pretty module' <> Pretty.hardline)
+
+formatFile :: FilePath -> IO ()
+formatFile filepath = do
+  code <- decodeUtf8 <$> readFileBS filepath
+  let module' = Parser.parseModule filepath code
+  let errors = Syntax.moduleErrors module'
+  unless (null errors) $ do
+    Text.IO.hPutStrLn stderr "Encountered parse errors while trying to format code:"
+    forM_ errors $ \err -> do
+      Text.IO.hPutStr stderr (toText err)
+      Text.IO.hPutStr stderr "\n"
+      exitFailure
+
+  withFile filepath WriteMode $ \handle -> do
+    Efg.Pretty.renderIO False 80 handle (Efg.Pretty.pretty module' <> Pretty.hardline)
 
 main :: IO ()
 main = do
@@ -126,3 +152,4 @@ main = do
       Text.IO.hPutStr stderr "Interpreting not implemented yet\n"
       exitFailure
     Parse file highlight -> parse_ file highlight
+    Format file -> formatFile file
