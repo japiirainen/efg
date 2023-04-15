@@ -76,8 +76,8 @@ instance (Pretty a) => Pretty (SourceBlock a) where
   pretty SourceBlock {sbContents} = pretty sbContents
 
 data SourceBlock' loc
-  = SBTopDecl (TopDecl loc)
-  | Unparsable ReachedEOF String
+  = SBTopDecl {topDecl :: TopDecl loc}
+  | Unparsable {reachedEOF :: ReachedEOF, errorMessage :: String}
   deriving stock (Show, Generic)
 
 instance (Pretty a) => Pretty (SourceBlock' a) where

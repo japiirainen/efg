@@ -4,7 +4,6 @@ module Efg.Parser.Parsing where
 
 import Efg.Parser.Lexing
 import Efg.Parser.Location (Offset (..))
-import Efg.Syntax (SourceBlock (SourceBlock), SourceBlock' (..), TopDecl (..))
 import Text.Megaparsec hiding (ParseError, parse)
 import Text.Megaparsec.Error (ParseError)
 
@@ -15,52 +14,52 @@ import qualified Text.Megaparsec as P
 
 type LExpr = Syntax.Expr Offset
 
-sourceBlocks :: Parser [SourceBlock Offset]
+sourceBlocks :: Parser [Syntax.SourceBlock Offset]
 sourceBlocks = manyTill sourceBlock eof
 
-sourceBlock :: Parser (SourceBlock Offset)
+sourceBlock :: Parser (Syntax.SourceBlock Offset)
 sourceBlock = do
   offset <- getOffset
   pos <- getSourcePos
   (src, block) <- withSource $ withRecovery recover sourceBlock'
-  return $ SourceBlock (unPos (sourceLine pos)) offset src block
+  return $ Syntax.SourceBlock (unPos (sourceLine pos)) offset src block
 
-recover :: ParseError Text Void -> Parser (SourceBlock' Offset)
+recover :: ParseError Text Void -> Parser (Syntax.SourceBlock' Offset)
 recover e = do
   pos <- statePosState <$> getParserState
-  reachEof <-
+  reachedEOF <-
     try (mayBreak sc >> eof >> return True)
       <|> return False
   consumeTillBreak
-  let errMsg = errorBundlePretty (ParseErrorBundle (e :| []) pos)
-  return $ Unparsable reachEof errMsg
+  let errorMessage = errorBundlePretty (ParseErrorBundle (e :| []) pos)
+  return Syntax.Unparsable {..}
 
 consumeTillBreak :: Parser ()
 consumeTillBreak = void $ manyTill anySingle $ eof <|> void (try (eol >> eol))
 
-sourceBlock' :: Parser (SourceBlock' Offset)
+sourceBlock' :: Parser (Syntax.SourceBlock' Offset)
 sourceBlock' =
   optional (try nextLine)
-    *> (SBTopDecl <$> topDecl)
+    *> (Syntax.SBTopDecl <$> topDecl)
 
-topDecl :: Parser (TopDecl Offset)
+topDecl :: Parser (Syntax.TopDecl Offset)
 topDecl = topDecl' <* eolf
   where
-    topDecl' :: Parser (TopDecl Offset)
+    topDecl' :: Parser (Syntax.TopDecl Offset)
     topDecl' =
       def_
-        <|> TopExpr <$> expr_
+        <|> Syntax.TopExpr <$> expr_
 
 expr_ :: Parser LExpr
 expr_ = pGroup -- TODO
 
-def_ :: Parser (TopDecl Offset)
+def_ :: Parser (Syntax.TopDecl Offset)
 def_ = do
   keyword "def"
   name <- anyName
   sym "="
   body <- try (withIndent expr_) <|> expr_
-  return TopDef {..}
+  return Syntax.TopDef {..}
 
 pGroup :: Parser LExpr
 pGroup = makeExprParser leafGroup ops
