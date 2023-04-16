@@ -97,6 +97,7 @@ instance (Pretty a) => Pretty (TopDecl a) where
 data Expr loc
   = Variable {location :: loc, name :: Name}
   | Scalar {location :: loc, scalar :: Scalar}
+  | Annotation {location :: loc, annotated :: Expr loc, annotation :: Type loc}
   | Operator {location :: loc, left :: Expr loc, operatorLocation :: loc, operator :: Operator, right :: Expr loc}
   | If {location :: loc, predicate :: Expr loc, ifTrue :: Expr loc, ifFalse :: Expr loc}
   | Lambda {location :: loc, nameLocation :: loc, name :: Name, body :: Expr loc}
@@ -320,6 +321,24 @@ prettyExpression If {..} =
             <> keyword "else"
             <> " "
             <> prettyExpression ifFalse
+        )
+prettyExpression Annotation {..} =
+  Pretty.group (Pretty.flatAlt long short)
+  where
+    short =
+      prettyTimesExpression annotated
+        <> " "
+        <> Pretty.operator ":"
+        <> " "
+        <> pretty annotation
+    long =
+      Pretty.align
+        ( prettyTimesExpression annotated
+            <> Pretty.hardline
+            <> " "
+            <> Pretty.operator ":"
+            <> " "
+            <> pretty annotation
         )
 prettyExpression other = prettyTimesExpression other
 

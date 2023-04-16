@@ -7,9 +7,13 @@ import Efg.Parser.Location (Offset (..))
 import Text.Megaparsec hiding (ParseError, parse)
 import Text.Megaparsec.Error (ParseError)
 
+import qualified Control.Applicative.Combinators.NonEmpty as NonEmpty
 import qualified Control.Monad.Combinators.Expr as Expr
 import qualified Data.Char as Char
+import Data.Foldable (foldr1)
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Efg.Syntax as Syntax
+import qualified Efg.Type as Type
 import qualified Text.Megaparsec as P
 
 type LExpr = Syntax.Expr Offset
@@ -51,7 +55,14 @@ topDecl = topDecl' <* eolf
         <|> Syntax.TopExpr <$> expr_
 
 expr_ :: Parser LExpr
-expr_ = pGroup -- TODO
+expr_ = try annotatedExpr <|> pGroup -- TODO
+
+annotatedExpr :: Parser LExpr
+annotatedExpr = do
+  annotated <- pGroup
+  sym ":"
+  annotation <- quantifiedType
+  return Syntax.Annotation {location = Syntax.location annotated, ..}
 
 def_ :: Parser (Syntax.TopDecl Offset)
 def_ = do
@@ -73,6 +84,7 @@ leafGroup = do
     '\"' -> pStr
     '\\' -> pLam
     'i' -> pIf <|> pVariable
+    'l' -> pLet <|> pVariable
     't' -> pBool BITrue <|> pVariable
     'f' -> pBool BIFalse <|> pVariable
     _ -> pVariable
@@ -82,6 +94,27 @@ pBool biv = withOffset \location -> do
   builtinValue biv
   let scalar = Syntax.Bool (biv == BITrue)
   return $ Syntax.Scalar {..}
+
+primType :: Parser (Type.Type Offset)
+primType =
+  let locatedTyp typ = try (withOffset \location -> do builtinValue typ; return location)
+      varType = try (withOffset \location -> do name <- loName; return Type.VariableType {..})
+   in ( do location <- locatedTyp BIInteger; return Type.Scalar {scalar = Type.Integer, ..}
+          <|> do location <- locatedTyp BIReal; return Type.Scalar {scalar = Type.Real, ..}
+          <|> do location <- locatedTyp BIBool; return Type.Scalar {scalar = Type.Bool, ..}
+          <|> do location <- locatedTyp BIStr; return Type.Scalar {scalar = Type.Text, ..}
+          <|> do varType
+          <|> parens quantifiedType
+      )
+
+funType :: Parser (Type.Type Offset)
+funType =
+  try
+    do
+      let function input output = Type.Function {location = Type.location input, ..}
+      ts <- primType `NonEmpty.sepBy1` sym "->"
+      return (foldr1 function ts)
+    <|> primType
 
 locatedName :: Parser (Offset, Syntax.Name)
 locatedName = withOffset \location -> do
@@ -93,9 +126,79 @@ pLam = mayNotBreak $ withOffset \location -> do
   sym "\\"
   names <- P.some locatedName
   mayNotBreak (sym "->")
-  body0 <- pGroup
-  let cons (nameLocation, name) body = Syntax.Lambda {..}
-  return $ foldr cons body0 names
+  let lamBody = do
+        body0 <- expr_
+        let cons (nameLocation, name) body = Syntax.Lambda {..}
+        return $ foldr cons body0 names
+  try (withIndent lamBody) <|> lamBody
+
+pLet :: Parser LExpr
+pLet = label "let expression" do
+  bindings <- NonEmpty.some1 (pBinding <* mayBreak sc)
+  keyword KWIn
+  mayBreak sc *> do
+    body <- expr_
+    return do
+      let Syntax.Binding {nameLocation = location} =
+            head bindings
+      Syntax.Let {..}
+
+pBinding :: Parser (Syntax.Binding Offset)
+pBinding =
+  label "let binding" $
+    try bindingAnn
+      <|> bindingNoAnn
+
+bindingNoAnn :: Parser (Syntax.Binding Offset)
+bindingNoAnn = do
+  (_, (nameOffset, _)) <- withPos (keyword KWLet)
+  let nameLocation = Offset nameOffset
+  name <- loName
+  sym "="
+  mayBreak sc *> do
+    assignment <- expr_
+    let annotation = Nothing
+    return Syntax.Binding {..}
+
+bindingAnn :: Parser (Syntax.Binding Offset)
+bindingAnn = do
+  (_, (nameOffset, _)) <- withPos (keyword KWLet)
+  let nameLocation = Offset nameOffset
+  name <- loName
+  sym ":"
+  annotation <- fmap Just quantifiedType
+  sym "="
+  mayBreak sc *> do
+    mayBreak sc *> do
+      assignment <- expr_
+      return Syntax.Binding {..}
+
+domain :: Parser Type.Domain
+domain = do
+  keyword "Type"
+  return Type.Type
+
+quantifiedType :: Parser (Type.Type Offset)
+quantifiedType = do
+  let quantify (forallOrExists, location, (typeVariableOffset, typeVariable), domain_) =
+        forallOrExists location typeVariableOffset typeVariable domain_
+  fss <-
+    P.many
+      ( do
+          (_, (start, _)) <- withPos (keyword "forall")
+          let location = Offset start
+          fs <- P.some do
+            parens do
+              locatedTypeVariable <- withOffset \loc -> do n <- loName; return (loc, n)
+              sym ":"
+              domain_ <- domain
+              return \location_ ->
+                quantify (Type.Forall, location_, locatedTypeVariable, domain_)
+          sym "."
+          return (map ($ location) fs)
+      )
+  t <- funType
+  return (foldr ($) t (concat fss))
 
 pIf :: Parser LExpr
 pIf = mayNotBreak $ withOffset \location -> do

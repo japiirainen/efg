@@ -1,0 +1,5 @@
+let const : forall (a : Type) (b : Type) . a -> b -> a = \x y -> x
+
+in const 1
+
+1 + 1 : Real

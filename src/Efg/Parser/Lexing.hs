@@ -88,6 +88,8 @@ data Keyword
   | KWIn
   | KWFix
   | KWModule
+  | KWForall
+  | KWType
   deriving stock (Eq, Ord, Show, Bounded, Enum)
 
 instance IsString Keyword where
@@ -100,6 +102,8 @@ instance IsString Keyword where
     "in" -> KWIn
     "fix" -> KWFix
     "module" -> KWModule
+    "forall" -> KWForall
+    "Type" -> KWType
     _ -> error "Invalid keyword"
 
 keywordToken :: Keyword -> String
@@ -112,6 +116,8 @@ keywordToken = \case
   KWIn -> "in"
   KWFix -> "fix"
   KWModule -> "module"
+  KWForall -> "forall"
+  KWType -> "Type"
 
 keyword :: Keyword -> Lexer ()
 keyword kw =
@@ -123,18 +129,30 @@ keyword kw =
 data BuiltinValue
   = BITrue
   | BIFalse
+  | BIInteger
+  | BIReal
+  | BIStr
+  | BIBool
   deriving stock (Eq, Ord, Show, Bounded, Enum)
 
 instance IsString BuiltinValue where
   fromString = \case
     "true" -> BITrue
     "false" -> BIFalse
+    "Integer" -> BIInteger
+    "Real" -> BIReal
+    "Str" -> BIStr
+    "Bool" -> BIBool
     _ -> "Invalid builtin-value"
 
 builtinToken :: BuiltinValue -> String
 builtinToken = \case
   BITrue -> "true"
   BIFalse -> "false"
+  BIInteger -> "Integer"
+  BIReal -> "Real"
+  BIStr -> "Str"
+  BIBool -> "Bool"
 
 builtinValue :: BuiltinValue -> Lexer ()
 builtinValue bi =

@@ -1,7 +1,15 @@
-def comp = \g f x -> g (f x)
+def comp = 
+  \g f x -> g (f x)
 
 def x = \x -> 6 * x
 
-def y = \x -> (x + 3) && 2
+def y = \x -> 
+  (x + 3) && 2
 
-def t0 = comp (y x) == 50
+def t0 =
+  comp (y x) == 50
+
+def t1 = \x ->
+  let a0 = 1
+  let a1 = 2
+  in a0 + a1 + x
