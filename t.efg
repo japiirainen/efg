@@ -12,4 +12,9 @@ def t0 =
 def t1 = \x ->
   let a0 = 1
   let a1 = 2
-  in a0 + a1 + x
+  a0 + a1 + x
+
+def fib = 
+  let rec go = \n ->
+    if n < 2 then 1 else fib (n - 1) + fib (n - 2)
+  go

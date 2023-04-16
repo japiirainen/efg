@@ -86,7 +86,7 @@ data Keyword
   | KWElse
   | KWLet
   | KWIn
-  | KWFix
+  | KWRec
   | KWModule
   | KWForall
   | KWType
@@ -100,7 +100,7 @@ instance IsString Keyword where
     "else" -> KWElse
     "let" -> KWLet
     "in" -> KWIn
-    "fix" -> KWFix
+    "rec" -> KWRec
     "module" -> KWModule
     "forall" -> KWForall
     "Type" -> KWType
@@ -114,7 +114,7 @@ keywordToken = \case
   KWElse -> "else"
   KWLet -> "let"
   KWIn -> "in"
-  KWFix -> "fix"
+  KWRec -> "rec"
   KWModule -> "module"
   KWForall -> "forall"
   KWType -> "Type"

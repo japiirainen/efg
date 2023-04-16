@@ -103,7 +103,7 @@ data Expr loc
   | Lambda {location :: loc, nameLocation :: loc, name :: Name, body :: Expr loc}
   | Application {location :: loc, function :: Expr loc, argument :: Expr loc}
   | Let {location :: loc, bindings :: NonEmpty (Binding loc), body :: Expr loc}
-  | Fix {location :: loc, nameLocation :: loc, name :: Name, body :: Expr loc}
+  | LetRec {location :: loc, bindings :: NonEmpty (Binding loc), body :: Expr loc}
   | Builtin {location :: loc, builtin :: Builtin}
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
@@ -119,6 +119,10 @@ data Operator
   | Equal
   | NotEqual
   | Minus
+  | LessEqual
+  | Less
+  | GreaterEqual
+  | Greater
   deriving stock (Eq, Generic, Lift, Show)
 
 instance IsString Operator where
@@ -130,7 +134,11 @@ instance IsString Operator where
   fromString "==" = Equal
   fromString "!=" = NotEqual
   fromString "-" = Minus
-  fromString _ = error "unreachable"
+  fromString "<=" = LessEqual
+  fromString "<" = Less
+  fromString ">=" = GreaterEqual
+  fromString ">" = Greater
+  fromString c = error ("Operator fromString: " <> toText c <> " not handled")
 
 instance Pretty Operator where
   pretty And = Pretty.operator "&&"
@@ -141,6 +149,10 @@ instance Pretty Operator where
   pretty Equal = Pretty.operator "=="
   pretty NotEqual = Pretty.operator "!="
   pretty Minus = Pretty.operator "-"
+  pretty LessEqual = Pretty.operator "<="
+  pretty Less = Pretty.operator "<"
+  pretty GreaterEqual = Pretty.operator ">="
+  pretty Greater = Pretty.operator ">"
 
 data Scalar
   = Real Double
@@ -175,6 +187,7 @@ data Binding loc = Binding
   , name :: Text
   , annotation :: Maybe (Type loc)
   , assignment :: Expr loc
+  , isRec :: Bool
   }
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
@@ -185,7 +198,7 @@ instance Pretty a => Pretty (Binding a) where
       long =
         Pretty.align
           ( keyword "let"
-              <> " "
+              <> (if isRec then keyword " rec " else " ")
               <> label (pretty name)
               <> Pretty.hardline
               <> "      "
@@ -196,7 +209,7 @@ instance Pretty a => Pretty (Binding a) where
 
       short =
         keyword "let"
-          <> " "
+          <> (if isRec then keyword " rec " else " ")
           <> label (pretty name)
           <> " "
           <> punctuation "="
@@ -208,7 +221,7 @@ instance Pretty a => Pretty (Binding a) where
       long =
         Pretty.align
           ( keyword "let"
-              <> " "
+              <> (if isRec then keyword " rec " else " ")
               <> label (pretty name)
               <> Pretty.hardline
               <> "      "
@@ -223,7 +236,7 @@ instance Pretty a => Pretty (Binding a) where
           )
       short =
         keyword "let"
-          <> " "
+          <> (if isRec then keyword " rec " else " ")
           <> label (pretty name)
           <> " "
           <> Pretty.operator ":"
@@ -292,6 +305,7 @@ prettyExpression Let {..} = Pretty.group (Pretty.flatAlt long short)
             <> "  "
             <> prettyExpression body
         )
+prettyExpression LetRec {..} = prettyExpression Let {..}
 prettyExpression If {..} =
   Pretty.group (Pretty.flatAlt long short)
   where
@@ -409,7 +423,19 @@ prettyEqExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
 prettyEqExpression = prettyOperator Equal prettyNEqExpression
 
 prettyNEqExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
-prettyNEqExpression = prettyOperator Equal prettyApplicationExpression
+prettyNEqExpression = prettyOperator Equal prettyGEExpression
+
+prettyGEExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyGEExpression = prettyOperator GreaterEqual prettyGExpression
+
+prettyGExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyGExpression = prettyOperator Greater prettyLEExpression
+
+prettyLEExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyLEExpression = prettyOperator LessEqual prettyLExpression
+
+prettyLExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
+prettyLExpression = prettyOperator Less prettyApplicationExpression
 
 prettyApplicationExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
 prettyApplicationExpression expression

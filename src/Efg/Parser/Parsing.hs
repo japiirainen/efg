@@ -82,7 +82,7 @@ leafGroup = do
     '\"' -> pStr
     '\\' -> pLam
     'i' -> pIf <|> pVariable
-    'l' -> pLet <|> pVariable
+    'l' -> try (pLet True) <|> pLet False <|> pVariable
     't' -> pBool BITrue <|> pVariable
     'f' -> pBool BIFalse <|> pVariable
     _ -> pVariable
@@ -130,10 +130,10 @@ pLam = mayNotBreak $ withOffset \location -> do
         return $ foldr cons body0 names
   try (withIndent lamBody) <|> lamBody
 
-pLet :: Parser LExpr
-pLet = label "let expression" do
-  bindings <- NonEmpty.some1 (pBinding <* mayBreak sc)
-  keyword KWIn
+pLet :: Bool -> Parser LExpr
+pLet isRec = label "let expression" do
+  bindings <- NonEmpty.some1 (pBinding isRec <* mayBreak sc)
+  void $ optional (keyword KWIn)
   mayBreak sc *> do
     body <- expr_
     return do
@@ -141,28 +141,30 @@ pLet = label "let expression" do
             head bindings
       Syntax.Let {..}
 
-pBinding :: Parser (Syntax.Binding Offset)
-pBinding =
+pBinding :: Bool -> Parser (Syntax.Binding Offset)
+pBinding isRec =
   label "let binding" $
-    try bindingAnn
-      <|> bindingNoAnn
+    try (bindingAnn isRec)
+      <|> bindingNoAnn isRec
 
-bindingNoAnn :: Parser (Syntax.Binding Offset)
-bindingNoAnn = do
-  (_, (nameOffset, _)) <- withPos (keyword KWLet)
+bindingNoAnn :: Bool -> Parser (Syntax.Binding Offset)
+bindingNoAnn isRec = do
+  keyword KWLet
+  when isRec (keyword KWRec)
+  (name, (nameOffset, _)) <- withPos loName
   let nameLocation = Offset nameOffset
-  name <- loName
   sym "="
   mayBreak sc *> do
     assignment <- expr_
     let annotation = Nothing
     return Syntax.Binding {..}
 
-bindingAnn :: Parser (Syntax.Binding Offset)
-bindingAnn = do
-  (_, (nameOffset, _)) <- withPos (keyword KWLet)
+bindingAnn :: Bool -> Parser (Syntax.Binding Offset)
+bindingAnn isRec = do
+  keyword KWLet
+  when isRec (keyword KWRec)
+  (name, (nameOffset, _)) <- withPos loName
   let nameLocation = Offset nameOffset
-  name <- loName
   sym ":"
   annotation <- fmap Just quantifiedType
   sym "="
