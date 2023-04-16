@@ -47,15 +47,13 @@ sourceBlock' =
     *> (Syntax.SBTopDecl <$> topDecl)
 
 topDecl :: Parser (Syntax.TopDecl Offset)
-topDecl = topDecl' <* eolf
-  where
-    topDecl' :: Parser (Syntax.TopDecl Offset)
-    topDecl' =
-      def_
-        <|> Syntax.TopExpr <$> expr_
+topDecl = (topDef <|> topExpr) <* eolf
+
+topExpr :: Parser (Syntax.TopDecl Offset)
+topExpr = Syntax.TopExpr <$> expr_
 
 expr_ :: Parser LExpr
-expr_ = try annotatedExpr <|> pGroup -- TODO
+expr_ = try annotatedExpr <|> pGroup
 
 annotatedExpr :: Parser LExpr
 annotatedExpr = do
@@ -64,8 +62,8 @@ annotatedExpr = do
   annotation <- quantifiedType
   return Syntax.Annotation {location = Syntax.location annotated, ..}
 
-def_ :: Parser (Syntax.TopDecl Offset)
-def_ = do
+topDef :: Parser (Syntax.TopDecl Offset)
+topDef = do
   keyword "def"
   name <- anyName
   sym "="
