@@ -14,7 +14,5 @@ def t1 = \x ->
   let a1 = 2
   a0 + a1 + x
 
-def fib = 
-  let rec go = \n ->
+def fib = rec fib ->
     if n < 2 then 1 else fib (n - 1) + fib (n - 2)
-  go

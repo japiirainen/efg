@@ -82,7 +82,8 @@ leafGroup = do
     '\"' -> pStr
     '\\' -> pLam
     'i' -> pIf <|> pVariable
-    'l' -> try (pLet True) <|> pLet False <|> pVariable
+    'l' -> pLet <|> pVariable
+    'r' -> pRec <|> pVariable
     't' -> pBool BITrue <|> pVariable
     'f' -> pBool BIFalse <|> pVariable
     _ -> pVariable
@@ -130,9 +131,17 @@ pLam = mayNotBreak $ withOffset \location -> do
         return $ foldr cons body0 names
   try (withIndent lamBody) <|> lamBody
 
-pLet :: Bool -> Parser LExpr
-pLet isRec = label "let expression" do
-  bindings <- NonEmpty.some1 (pBinding isRec <* mayBreak sc)
+pRec :: Parser LExpr
+pRec = label "rec expression" $ withOffset \location -> do
+  keyword KWRec
+  name <- anyName
+  mayNotBreak (sym "->")
+  expr <- try (withIndent expr_) <|> expr_
+  return Syntax.Rec {..}
+
+pLet :: Parser LExpr
+pLet = label "let expression" do
+  bindings <- NonEmpty.some1 (pBinding <* mayBreak sc)
   void $ optional (keyword KWIn)
   mayBreak sc *> do
     body <- expr_
@@ -141,16 +150,15 @@ pLet isRec = label "let expression" do
             head bindings
       Syntax.Let {..}
 
-pBinding :: Bool -> Parser (Syntax.Binding Offset)
-pBinding isRec =
+pBinding :: Parser (Syntax.Binding Offset)
+pBinding =
   label "let binding" $
-    try (bindingAnn isRec)
-      <|> bindingNoAnn isRec
+    try bindingAnn
+      <|> bindingNoAnn
 
-bindingNoAnn :: Bool -> Parser (Syntax.Binding Offset)
-bindingNoAnn isRec = do
+bindingNoAnn :: Parser (Syntax.Binding Offset)
+bindingNoAnn = do
   keyword KWLet
-  when isRec (keyword KWRec)
   (name, (nameOffset, _)) <- withPos loName
   let nameLocation = Offset nameOffset
   sym "="
@@ -159,10 +167,9 @@ bindingNoAnn isRec = do
     let annotation = Nothing
     return Syntax.Binding {..}
 
-bindingAnn :: Bool -> Parser (Syntax.Binding Offset)
-bindingAnn isRec = do
+bindingAnn :: Parser (Syntax.Binding Offset)
+bindingAnn = do
   keyword KWLet
-  when isRec (keyword KWRec)
   (name, (nameOffset, _)) <- withPos loName
   let nameLocation = Offset nameOffset
   sym ":"

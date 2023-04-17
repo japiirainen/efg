@@ -32,6 +32,7 @@ library
     Efg.Parser.Lexing
     Efg.Parser.Location
     Efg.Parser.Parsing
+    Efg.Interpreter.Value
     Efg.Pretty
     Efg.Syntax
     Efg.Type

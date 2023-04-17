@@ -103,7 +103,7 @@ data Expr loc
   | Lambda {location :: loc, nameLocation :: loc, name :: Name, body :: Expr loc}
   | Application {location :: loc, function :: Expr loc, argument :: Expr loc}
   | Let {location :: loc, bindings :: NonEmpty (Binding loc), body :: Expr loc}
-  | LetRec {location :: loc, bindings :: NonEmpty (Binding loc), body :: Expr loc}
+  | Rec {location :: loc, name :: Name, expr :: Expr loc}
   | Builtin {location :: loc, builtin :: Builtin}
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
@@ -187,7 +187,6 @@ data Binding loc = Binding
   , name :: Text
   , annotation :: Maybe (Type loc)
   , assignment :: Expr loc
-  , isRec :: Bool
   }
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
 
@@ -198,7 +197,7 @@ instance Pretty a => Pretty (Binding a) where
       long =
         Pretty.align
           ( keyword "let"
-              <> (if isRec then keyword " rec " else " ")
+              <> " "
               <> label (pretty name)
               <> Pretty.hardline
               <> "      "
@@ -209,7 +208,7 @@ instance Pretty a => Pretty (Binding a) where
 
       short =
         keyword "let"
-          <> (if isRec then keyword " rec " else " ")
+          <> " "
           <> label (pretty name)
           <> " "
           <> punctuation "="
@@ -221,7 +220,7 @@ instance Pretty a => Pretty (Binding a) where
       long =
         Pretty.align
           ( keyword "let"
-              <> (if isRec then keyword " rec " else " ")
+              <> " "
               <> label (pretty name)
               <> Pretty.hardline
               <> "      "
@@ -236,7 +235,7 @@ instance Pretty a => Pretty (Binding a) where
           )
       short =
         keyword "let"
-          <> (if isRec then keyword " rec " else " ")
+          <> " "
           <> label (pretty name)
           <> " "
           <> Pretty.operator ":"
@@ -305,7 +304,27 @@ prettyExpression Let {..} = Pretty.group (Pretty.flatAlt long short)
             <> "  "
             <> prettyExpression body
         )
-prettyExpression LetRec {..} = prettyExpression Let {..}
+prettyExpression Rec {..} =
+  Pretty.group (Pretty.flatAlt long short)
+  where
+    short =
+      keyword "rec"
+        <> " "
+        <> label (pretty name)
+        <> " "
+        <> punctuation "->"
+        <> " "
+        <> prettyExpression expr
+    long =
+      Pretty.align
+        ( keyword "rec"
+            <> " "
+            <> label (pretty name)
+            <> Pretty.hardline
+            <> keyword "->"
+            <> " "
+            <> prettyExpression expr
+        )
 prettyExpression If {..} =
   Pretty.group (Pretty.flatAlt long short)
   where
