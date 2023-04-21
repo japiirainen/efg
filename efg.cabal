@@ -33,6 +33,7 @@ library
     Efg.Parser.Location
     Efg.Parser.Parsing
     Efg.Interpreter.Value
+    Efg.Interpreter.Normalize
     Efg.Pretty
     Efg.Syntax
     Efg.Type

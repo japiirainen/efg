@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
@@ -95,7 +96,7 @@ instance (Pretty a) => Pretty (TopDecl a) where
   pretty = prettyTopDecl
 
 data Expr loc
-  = Variable {location :: loc, name :: Name}
+  = Variable {location :: loc, name :: Name, index :: Int}
   | Scalar {location :: loc, scalar :: Scalar}
   | Annotation {location :: loc, annotated :: Expr loc, annotation :: Type loc}
   | Operator {location :: loc, left :: Expr loc, operatorLocation :: loc, operator :: Operator, right :: Expr loc}
@@ -106,6 +107,9 @@ data Expr loc
   | Rec {location :: loc, name :: Name, expr :: Expr loc}
   | Builtin {location :: loc, builtin :: Builtin}
   deriving stock (Eq, Foldable, Functor, Generic, Lift, Show, Traversable)
+
+instance IsString (Expr ()) where
+  fromString s = Variable {location = (), name = fromString s, index = 0}
 
 instance (Pretty a) => Pretty (Expr a) where
   pretty = prettyExpression
@@ -484,7 +488,9 @@ prettyApplicationExpression expression
       prettyPrimitiveExpression other
 
 prettyPrimitiveExpression :: Pretty loc => Expr loc -> Doc AnsiStyle
-prettyPrimitiveExpression Variable {..} = label (pretty name)
+prettyPrimitiveExpression Variable {..}
+  | index == 0 = label (pretty name)
+  | otherwise = label (pretty name) <> "@" <> Pretty.scalar (pretty index)
 prettyPrimitiveExpression Builtin {..} =
   pretty builtin
 prettyPrimitiveExpression Scalar {..} =

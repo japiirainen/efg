@@ -218,9 +218,17 @@ pIf = mayNotBreak $ withOffset \location -> do
   return $ Syntax.If {..}
 
 pVariable :: Parser LExpr
-pVariable = withOffset \location -> do
-  name <- anyName
-  return $ Syntax.Variable {..}
+pVariable = withOffset \location ->
+  ( try do
+      name <- anyName
+      sym "@"
+      index <- fromIntegral <$> natLit
+      return $ Syntax.Variable {..}
+  )
+    <|> ( do
+            name <- anyName
+            return $ Syntax.Variable {index = 0, ..}
+        )
 
 pStr :: Parser LExpr
 pStr = withOffset \location -> do

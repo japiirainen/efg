@@ -18,6 +18,11 @@ import qualified Prettyprinter as Pretty
 import qualified System.Console.ANSI as ANSI
 import qualified System.Console.Terminal.Size as Size
 
+import qualified Efg.Interpreter.Normalize as Normalize
+import qualified Efg.Interpreter.Value as Value
+import Efg.Parser.Lexing (parse)
+import qualified Efg.Parser.Parsing as P
+
 data Highlight
   = -- | Force the use of ANSI color escape sequences to highlight source code
     Color
